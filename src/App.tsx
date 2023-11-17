@@ -1,30 +1,43 @@
 import { useEffect, useRef, useState } from "react";
+import { loadImage } from "./util/loadImg";
 
 function App() {
   const [draw, setDraw] = useState(false);
   const [pos, setPos] = useState({ drawable: false, x: -1, y: -1 });
   const isRef = useRef<HTMLCanvasElement>(null);
-
+  const pixRatio = window.devicePixelRatio ?? 1;
+  const contWidth = window.innerWidth;
+  const contHeight = window.innerHeight;
+  const size = Math.max(contWidth, contHeight) / 8;
+  const colParts = Math.round(contWidth / size);
+  const numParts = colParts * Math.round(contHeight / size);
+  console.log(numParts);
   useEffect(() => {
-    const img1 = new Image();
-    const img2 = new Image();
+    const img1 = new Image(contWidth, contHeight);
+    const img2 = new Image(contWidth, contHeight);
+    let imageData: ImageData;
+    img1.crossOrigin = "Anonymous";
+    img2.crossOrigin = "Anonymous";
     const ctx = isRef.current?.getContext("2d");
     if (!ctx) return () => {};
 
-    img1.src = "https://capa.ai/static/services/one_stop.jpg";
-    img2.src = "https://capa.ai/static/services/cutting.jpg";
-
-    const pattern1 = ctx.createPattern(img1, "no-repeat");
+    (async () =>
+      await loadImage("https://capa.ai/static/services/cutting.jpg", img2))();
     const pattern2 = ctx.createPattern(img2, "no-repeat");
 
-    ctx.lineWidth = 80;
+    ctx.lineWidth = 150;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.strokeStyle = pattern2 as CanvasPattern;
+
     if (!draw) {
-      ctx.fillStyle = pattern1 as CanvasPattern;
-      ctx.fillRect(0, 0, 1100, 1100);
-      setDraw(true);
+      (async () => {
+        await loadImage("https://capa.ai/static/services/one_stop.jpg", img1);
+        ctx.drawImage(img1, 0, 0, contWidth, contHeight);
+        const imageData = ctx.getImageData(0, 0, contWidth, contHeight);
+        ctx.putImageData(imageData, 0, 0);
+        setDraw(true);
+      })();
     }
 
     const handleUp = () => {
@@ -43,6 +56,7 @@ function App() {
       if (pos.drawable) {
         ctx.lineTo(target.offsetX, target.offsetY);
         ctx.stroke();
+        console.log(imageData);
       }
     };
 
@@ -57,10 +71,8 @@ function App() {
   }, [isRef, pos]);
 
   return (
-    <div className="App">
-      <div style={{ width: "100%", height: "100%" }}>
-        <canvas ref={isRef} width={"1100px"} height={"1100px"}></canvas>
-      </div>
+    <div style={{ width: "100vw", height: "100vh" }}>
+      <canvas ref={isRef} width={contWidth} height={contHeight}></canvas>
     </div>
   );
 }
